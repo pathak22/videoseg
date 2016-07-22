@@ -23,7 +23,7 @@ import time
 import utils
 import _init_paths  # noqa
 from mr_saliency import MR
-from pyflow import pyflow
+import pyflow
 
 
 def superpixels(im, maxsp=200, vis=False):

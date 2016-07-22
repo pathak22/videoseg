@@ -20,3 +20,7 @@ this_dir = os.path.dirname(__file__)
 # Add lib to PATH
 lib_path = os.path.join(this_dir, '..', 'lib')
 add_path(lib_path)
+lib_path = os.path.join(this_dir, '..', 'lib/pyflow')
+add_path(lib_path)
+lib_path = os.path.join(this_dir, '..', 'lib/pydensecrf')
+add_path(lib_path)

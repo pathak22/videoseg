@@ -32,18 +32,22 @@
 4. Convert them to modules
   ```Shell
   cd videoseg/lib/
-  cp __init__.py pyflow/
   cp __init__.py mr_saliency/
   cp __init__.py kts/
   ```
 
-5. Run NLC segmentation:
+5. Run temporal segmentation:
+  ```Shell
+  time python vid2shots.py -imdir /home/dpathak/local/data/trash/my_nlc/imseq/v21/ -out /home/dpathak/local/data/trash/my_nlc/nlc_out/
+  ```
+
+6. Run NLC segmentation:
   ```Shell
   cd videoseg/src/
   time python nlc.py -imdir /home/dpathak/local/data/trash/my_nlc/imseq/3_tmp/ -out /home/dpathak/local/data/trash/my_nlc/nlc_out/ -maxsp 400 -iters 100 -seed 2905 -fgap 0
   ```
 
-6. Run Tracker:
+7. Run Tracker:
   ```Shell
   cd videoseg/src/
   time python dm_tracker.py -fgap 2 -seed 2905 -vizTr -dmThresh 0 -shotFrac 0.2 -matchNbr 20 -postTrackHomTh -1 -preTrackHomTh 10
