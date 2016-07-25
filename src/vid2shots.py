@@ -110,8 +110,8 @@ def parse_args():
         default=40, type=int)
     parser.add_argument(
         '-v', dest='vmax',
-        help='Parameter for KTS, lower value means more clips. Default 0.1.',
-        default=0.1, type=float)
+        help='Parameter for KTS, lower value means more clips. Default 0.2.',
+        default=0.2, type=float)
     parser.add_argument(
         '-seed', dest='seed',
         help='Random seed for numpy and python.', default=2905, type=int)

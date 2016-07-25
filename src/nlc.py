@@ -26,7 +26,7 @@ from mr_saliency import MR
 import pyflow
 
 
-def superpixels(im, maxsp=200, vis=False):
+def superpixels(im, maxsp=200, vis=False, redirect=False):
     """
     Get Slic Superpixels
     Input: im: (h,w,c) or (n,h,w,c): 0-255: np.uint8
@@ -39,9 +39,10 @@ def superpixels(im, maxsp=200, vis=False):
     for i in range(im.shape[0]):
         # slic needs im: float in [0,1]
         sp[i] = slic(im[i].astype(np.float) / 255., n_segments=maxsp, sigma=5)
-        sys.stdout.write('Superpixel computation: [% 5.1f%%]\r' %
-                            (100.0 * float((i + 1) / im.shape[0])))
-        sys.stdout.flush()
+        if not redirect:
+            sys.stdout.write('Superpixel computation: [% 5.1f%%]\r' %
+                                (100.0 * float((i + 1) / im.shape[0])))
+            sys.stdout.flush()
     eTime = time.time()
     print('Superpixel computation finished: %.2f s' % (eTime - sTime))
 
@@ -107,7 +108,7 @@ def color_hist(im, colBins):
 
 
 def compute_descriptor(im, sp, spPatch=15, colBins=20, hogCells=9,
-                        hogBins=6):
+                        hogBins=6, redirect=False):
     """
     Compute region descriptors for NLC
     Input:
@@ -159,9 +160,10 @@ def compute_descriptor(im, sp, spPatch=15, colBins=20, hogCells=9,
                 hogF, colHist, [boxes[j, 1] * 1. / h, boxes[j, 0] * 1. / w]))
             count += 1
         frameEnd[i] = count - 1
-        sys.stdout.write('Descriptor computation: [% 5.1f%%]\r' %
-                            (100.0 * float((i + 1) / n)))
-        sys.stdout.flush()
+        if not redirect:
+            sys.stdout.write('Descriptor computation: [% 5.1f%%]\r' %
+                                (100.0 * float((i + 1) / n)))
+            sys.stdout.flush()
     regions = regions[:count]
     eTime = time.time()
     print('Descriptor computation finished: %.2f s' % (eTime - sTime))
@@ -169,7 +171,7 @@ def compute_descriptor(im, sp, spPatch=15, colBins=20, hogCells=9,
     return regions, frameEnd
 
 
-def compute_nn(regions, frameEnd, F=15, L=4):
+def compute_nn(regions, frameEnd, F=15, L=4, redirect=False):
     """
     Compute transition matrix using nearest neighbors
     Input:
@@ -200,9 +202,10 @@ def compute_nn(regions, frameEnd, F=15, L=4):
         nnInd += startF
         currInd = np.mgrid[currStartF:1 + currEndF, 0:M][0]
         transM[currInd, nnInd] = distNN
-        sys.stdout.write('NearestNeighbor computation: [% 5.1f%%]\r' %
-                            (100.0 * float((i + 1) / n)))
-        sys.stdout.flush()
+        if not redirect:
+            sys.stdout.write('NearestNeighbor computation: [% 5.1f%%]\r' %
+                                (100.0 * float((i + 1) / n)))
+            sys.stdout.flush()
 
     eTime = time.time()
     print('NearestNeighbor computation finished: %.2f s' % (eTime - sTime))
@@ -230,7 +233,7 @@ def normalize_nn(transM, sigma=1):
 
 def compute_saliency(imSeq, flowSz=100, flowBdd=12.5, flowF=3, flowWinSz=10,
                         flowMagTh=1, flowDirTh=0.75, numDomFTh=0.5,
-                        flowDirBins=10, patchSz=5):
+                        flowDirBins=10, patchSz=5, redirect=False):
     """
     Initialize for FG/BG votes by Motion or Appearance Saliency. FG>0, BG=0.
     Input:
@@ -347,9 +350,10 @@ def compute_saliency(imSeq, flowSz=100, flowBdd=12.5, flowF=3, flowWinSz=10,
         if isFrameDominant > 0:
             salImSeq[i] /= isFrameDominant
             numDomFrames += isFrameDominant > 0
-        sys.stdout.write('Motion Saliency computation: [% 5.1f%%]\r' %
-                            (100.0 * float((i + 1) / n)))
-        sys.stdout.flush()
+        if not redirect:
+            sys.stdout.write('Motion Saliency computation: [% 5.1f%%]\r' %
+                                (100.0 * float((i + 1) / n)))
+            sys.stdout.flush()
     eTime = time.time()
     print('Motion Saliency computation finished: %.2f s' % (eTime - sTime))
 
@@ -359,9 +363,13 @@ def compute_saliency(imSeq, flowSz=100, flowBdd=12.5, flowF=3, flowWinSz=10,
         mr = MR.MR_saliency()
         for i in range(n):
             salImSeq[i] = mr.saliency(im[i])
-            sys.stdout.write('Appearance Saliency computation: [% 5.1f%%]\r' %
-                                (100.0 * float((i + 1) / n)))
-            sys.stdout.flush()
+            if not redirect:
+                sys.stdout.write(
+                    'Appearance Saliency computation: [% 5.1f%%]\r' %
+                    (100.0 * float((i + 1) / n)))
+                sys.stdout.flush()
+        # Higher score means lower saliency. Correct it across full video !
+        salImSeq -= np.max(salImSeq)
         eTime = time.time()
         print('Appearance Saliency computation finished: %.2f s' %
                 (eTime - sTime))
@@ -467,6 +475,7 @@ def remove_low_energy_blobs(maskSeq, binTh, relSize=0.6):
                  has same values as input, except the low energy blobs where its
                  value is binTh-epsilon.
     """
+    sTime = time.time()
     epsilon = 1e-5
     for i in range(maskSeq.shape[0]):
         mask = (maskSeq[i] > binTh).astype(np.uint8)
@@ -476,10 +485,12 @@ def remove_low_energy_blobs(maskSeq, binTh, relSize=0.6):
         destroyFG = count[1:] < relSize * sizeLargestBlob
         destroyFG = np.concatenate(([False], destroyFG))
         maskSeq[i][destroyFG[sp1]] = binTh - epsilon
+    eTime = time.time()
+    print('Removing low energy blobs finished: %.2f s' % (eTime - sTime))
     return maskSeq
 
 
-def nlc(imSeq, maxsp, iters, outdir):
+def nlc(imSeq, maxsp, iters, outdir, suffix='', redirect=False):
     """
     Perform Non-local Consensus voting moving object segmentation (NLC)
     Input:
@@ -496,18 +507,19 @@ def nlc(imSeq, maxsp, iters, outdir):
 
     if not doload:
         # compute Superpixels -- 2.5s per 720x1280 image for any maxsp
-        sp = superpixels(imSeq, maxsp)
+        sp = superpixels(imSeq, maxsp, redirect=redirect)
 
         # compute region descriptors
-        regions, frameEnd = compute_descriptor(imSeq, sp)
+        regions, frameEnd = compute_descriptor(imSeq, sp, redirect=redirect)
 
         # compute nearest neighbors
-        transM = compute_nn(regions, frameEnd, F=15, L=2)
+        transM = compute_nn(regions, frameEnd, F=15, L=2, redirect=redirect)
 
         # get initial saliency score: either Motion or Appearance Saliency
-        salImSeq = compute_saliency(imSeq, flowBdd=12.5, flowDirBins=20)
+        salImSeq = compute_saliency(imSeq, flowBdd=12.5, flowDirBins=20,
+                                        redirect=redirect)
 
-    suffix = outdir.split('/')[-1]
+    suffix = outdir.split('/')[-1] if suffix == '' else suffix
     if doload:
         sp = np.load(outdir + '/sp_%s.npy' % suffix)
         regions = np.load(outdir + '/regions_%s.npy' % suffix)
@@ -541,7 +553,7 @@ def parse_args():
     """
     import argparse
     parser = argparse.ArgumentParser(
-        description='Creates a tracker using deepmatch and epicflow')
+        description='Foreground Segmentation using Non-Local Consensus')
     parser.add_argument(
         '-out', dest='outdir',
         help='Directory to save output.',
@@ -565,7 +577,7 @@ def parse_args():
         default=100, type=int)
     parser.add_argument(
         '-seed', dest='seed',
-        help='Random seed for numpy and python.', default=222, type=int)
+        help='Random seed for numpy and python.', default=2905, type=int)
 
     args = parser.parse_args()
     return args

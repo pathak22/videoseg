@@ -44,11 +44,17 @@
 6. Run NLC segmentation:
   ```Shell
   cd videoseg/src/
-  time python nlc.py -imdir /home/dpathak/local/data/trash/my_nlc/imseq/3_tmp/ -out /home/dpathak/local/data/trash/my_nlc/nlc_out/ -maxsp 400 -iters 100 -seed 2905 -fgap 0
+  time python nlc.py -imdir /home/dpathak/local/data/trash/my_nlc/imseq/3_tmp/ -out /home/dpathak/local/data/trash/my_nlc/nlc_out/ -maxsp 400 -iters 100
   ```
 
 7. Run Tracker:
   ```Shell
   cd videoseg/src/
   time python dm_tracker.py -fgap 2 -seed 2905 -vizTr -dmThresh 0 -shotFrac 0.2 -matchNbr 20 -postTrackHomTh -1 -preTrackHomTh 10
+  ```
+
+8. Run Full Pipeline:
+  ```Shell
+  cd videoseg/src/
+  time python run_full.py -out /home/dpathak/local/data/AllSegInit -in /home/dpathak/fbcode/experimental/deeplearning/dpathak/videoseg/datasets/imdir_ALL_21.txt
   ```
