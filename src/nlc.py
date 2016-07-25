@@ -430,7 +430,7 @@ def consensus_vote(votes, transM, frameEnd, iters):
             currStartF = 1 + frameEnd[i - 1] if i > 0 else 0
             currEndF = frameEnd[i]
             frameVotes = np.max(votes[currStartF:1 + currEndF])
-            votes[currStartF:1 + currEndF] /= frameVotes
+            votes[currStartF:1 + currEndF] /= frameVotes + (frameVotes <= 0)
     eTime = time.time()
     print('Consensus voting finished: %.2f s' % (eTime - sTime))
     return votes
@@ -479,6 +479,8 @@ def remove_low_energy_blobs(maskSeq, binTh, relSize=0.6):
     epsilon = 1e-5
     for i in range(maskSeq.shape[0]):
         mask = (maskSeq[i] > binTh).astype(np.uint8)
+        if np.sum(mask) == 0:
+            continue
         sp1, num = ndimage.label(mask)  # 0 in sp1 is same as 0 in mask i.e. BG
         count = utils.my_accumarray(sp1, np.ones(sp1.shape), num + 1, 'plus')
         sizeLargestBlob = np.max(count[1:])
