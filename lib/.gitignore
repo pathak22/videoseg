@@ -2,6 +2,5 @@ extra_libs/
 pydensecrf/
 pyflow/
 mr_saliency/
-kts/
 **/*.pyc
 **/*.npy

@@ -23,10 +23,14 @@
 
 3. Install kernel temporal segmentation code
   ```Shell
-  cd videoseg/lib/
-  wget http://pascal.inrialpes.fr/data2/potapov/med_summaries/kts_ver1.1.tar.gz
-  tar -zxvf kts_ver1.1.tar.gz && mv kts_ver1.1 kts
-  rm -f kts_ver1.1.tar.gz
+  # cd videoseg/lib/
+  # wget http://pascal.inrialpes.fr/data2/potapov/med_summaries/kts_ver1.1.tar.gz
+  # tar -zxvf kts_ver1.1.tar.gz && mv kts_ver1.1 kts
+  # rm -f kts_ver1.1.tar.gz
+
+  # Edit kts/cpd_nonlin.py to remove weave dependecy. Due to this change, we are shipping the library.
+  # Included in videoseg/lib/kts/ . However, it is not a required change if you have weave installed
+  # (which is mostly present by default).
   ```
 
 4. Convert them to modules
