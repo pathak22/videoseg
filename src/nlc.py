@@ -29,7 +29,7 @@ import pyflow
 def superpixels(im, maxsp=200, vis=False, redirect=False):
     """
     Get Slic Superpixels
-    Input: im: (h,w,c) or (n,h,w,c): 0-255: np.uint8
+    Input: im: (h,w,c) or (n,h,w,c): 0-255: np.uint8: RGB
     Output: sp: (h,w) or (n,h,w): 0-indexed regions, #regions <= maxsp
     """
     sTime = time.time()
@@ -83,7 +83,7 @@ def get_region_boxes(sp):
 def color_hist(im, colBins):
     """
     Get color histogram descriptors for RGB and LAB space.
-    Input: im: (h,w,c): 0-255: np.uint8
+    Input: im: (h,w,c): 0-255: np.uint8: RGB
     Output: descriptor: (colBins*6,)
     """
     assert im.ndim == 3 and im.shape[2] == 3, "image should be rgb"
@@ -112,7 +112,7 @@ def compute_descriptor(im, sp, spPatch=15, colBins=20, hogCells=9,
     """
     Compute region descriptors for NLC
     Input:
-        im: (h,w,c) or (n,h,w,c): 0-255: np.uint8
+        im: (h,w,c) or (n,h,w,c): 0-255: np.uint8: RGB
         sp: (h,w) or (n,h,w): 0-indexed regions, #regions <= numsp
         spPatch: patchsize around superpixel for feature computation
     Output:
@@ -227,7 +227,9 @@ def normalize_nn(transM, sigma=1):
         -np.square(transM[np.nonzero(transM)]) / sigma**2)
     transM[np.arange(k), np.arange(k)] = 1.
     normalization = np.dot(transM, np.ones(k))
-    transM = np.dot(np.diag(1. / normalization), transM)
+    # This is inefficient, bottom line is better ..
+    # transM = np.dot(np.diag(1. / normalization), transM)
+    transM = (1. / normalization).reshape((-1, 1)) * transM
     return transM
 
 
@@ -237,7 +239,7 @@ def compute_saliency(imSeq, flowSz=100, flowBdd=12.5, flowF=3, flowWinSz=10,
     """
     Initialize for FG/BG votes by Motion or Appearance Saliency. FG>0, BG=0.
     Input:
-        imSeq: (n, h, w, c) where n > 1: 0-255: np.uint8
+        imSeq: (n, h, w, c) where n > 1: 0-255: np.uint8: RGB
         flowSz: target size of image to be resized to for computing optical flow
         flowBdd: percentage of smaller side to be removed from bdry for saliency
         flowF: temporal radius to find optical flow
@@ -496,7 +498,7 @@ def nlc(imSeq, maxsp, iters, outdir, suffix='', redirect=False):
     """
     Perform Non-local Consensus voting moving object segmentation (NLC)
     Input:
-        imSeq: (n, h, w, c) where n > 1: 0-255: np.uint8
+        imSeq: (n, h, w, c) where n > 1: 0-255: np.uint8: RGB
         maxsp: max # of superpixels per image
         iters: # of iterations of consensus voting
     Output:
@@ -653,8 +655,11 @@ def demo_images():
     utils.mkdir_p(args.outdir + '/result_%s/' % suffix)
     for i in range(maskSeq.shape[0]):
         mask = (maskSeq[i] > binTh).astype(np.uint8)
-        imMasked = imSeq[i] * 1
-        imMasked[~mask.astype(np.bool), :] = 200
+        grayscaleimage = (color.rgb2gray(imSeq[i]) * 255.).astype(np.uint8)
+        imMasked = np.zeros(imSeq[i].shape, dtype=np.uint8)
+        for c in range(3):
+            imMasked[:, :, c] = grayscaleimage / 2 + 127
+        imMasked[mask.astype(np.bool), 1:] = 0
         Image.fromarray(imMasked).save(
             args.outdir + '/result_%s/' % suffix + imPathList[i].split('/')[-1])
     import subprocess
@@ -699,8 +704,8 @@ def demo_videos():
         if frac < 1.0:
             h, w, c = imresize(imSeq[0], frac).shape
             imSeq2 = np.zeros((n, h, w, c), dtype=np.uint8)
-            for i in range(n):
-                imSeq2[i] = imresize(imSeq[i], frac)
+            for j in range(n):
+                imSeq2[j] = imresize(imSeq[j], frac)
             imSeq = imSeq2
         print('Total Video Shape: ', imSeq.shape)
         if imSeq.shape[1] < 2:
@@ -725,10 +730,15 @@ def demo_videos():
             maskSeq = remove_low_energy_blobs(maskSeq, binTh)
         utils.rmdir_f(outdirV + '/result_%s/' % suffix)
         utils.mkdir_p(outdirV + '/result_%s/' % suffix)
+        outvidfile = outdirV + '/video_%s.avi' % suffix
+        utils.im2vid(outvidfile, imSeq, maskSeq)
         for i in range(maskSeq.shape[0]):
             mask = (maskSeq[i] > binTh).astype(np.uint8)
-            imMasked = imSeq[i] * 1
-            imMasked[~mask.astype(np.bool), :] = 200
+            grayscaleimage = (color.rgb2gray(imSeq[i]) * 255.).astype(np.uint8)
+            imMasked = np.zeros(imSeq[i].shape, dtype=np.uint8)
+            for c in range(3):
+                imMasked[:, :, c] = grayscaleimage / 2 + 127
+            imMasked[mask.astype(np.bool), 1:] = 0
             Image.fromarray(imMasked).save(
                 outdirV + '/result_%s/frame_%05d.png' % (suffix, i))
         import subprocess

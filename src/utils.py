@@ -13,11 +13,56 @@ import os
 def vid2im(vidPath):
     """
     Convert video to image sequence.
-    Output: imSeq: np array of shape (n,h,w,c): 0-255: np.uint8
+    Output: imSeq: np array of shape (n,h,w,c): 0-255: np.uint8: RGB
     """
-    import skvideo.io
-    imSeq = skvideo.io.vread(vidPath, backend='ffmpeg', verbosity=0)
+    # skivideo is unreliable ! Don't use
+    # import skvideo.io
+    # imSeq = skvideo.io.vread(vidPath, backend='ffmpeg', verbosity=0)
+    import cv2
+    vidcap = cv2.VideoCapture()
+    vidcap.open(vidPath)
+    if not vidcap.isOpened():
+        return None
+    imSeq = []
+    notdone = True
+    while notdone:
+        notdone, frame = vidcap.read()
+        if notdone:
+            imSeq.append(frame[np.newaxis, :, :, :])
+    imSeq = np.concatenate(imSeq)
+    imSeq = imSeq[..., ::-1]
     return imSeq
+
+
+def im2vid(vidPath, imSeq, maskSeq=None):
+    """
+    Convert an image sequence to video and write to vidPath. If mask is given,
+        then it generates a nice mask laid over video.
+    Input: imSeq: np array of shape (n,h,w,c): 0-255: np.uint8: RGB
+    maskSeq: same size and shape as imSeq: {0,1}: 0=BG, 1=FG: uint8
+    """
+    import cv2
+    writer = cv2.VideoWriter(
+        vidPath, cv2.cv.CV_FOURCC('M', 'J', 'P', 'G'), 10,
+        (imSeq[0].shape[1], imSeq[0].shape[0]))
+    if not writer.isOpened():
+        print('Video could not be written. Some bug!')
+        return None
+    for i in range(imSeq.shape[0]):
+        if maskSeq is not None:
+            mask = maskSeq[i]
+            grayscaleimage = cv2.cvtColor(
+                imSeq[i, :, :, ::-1].copy(), cv2.COLOR_BGR2GRAY)
+            maskedimage = np.zeros(imSeq[i].shape, dtype=np.uint8)
+            for c in range(3):
+                maskedimage[:, :, c] = grayscaleimage / 2 + 127
+            maskedimage[mask.astype(np.bool), :2] = 0
+        else:
+            maskedimage = imSeq[i, :, :, ::-1]
+        writer.write(maskedimage)
+    writer.release()
+    writer = None
+    return
 
 
 def mkdir_p(path):
@@ -55,7 +100,7 @@ def read_r(indir, pattern):
 def draw_point_im(im, loc, col, sizeOut=10):
     """
     Draws point on the image at given locations.
-    im.shape: (h,w,3): 0-255: np.uint8
+    im.shape: (h,w,3): 0-255: np.uint8: RGB
     loc.shape: (n,2) or (2,) describing (y,x)
     col: (n,3) or (3,) where n is more than 1
     """
