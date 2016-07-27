@@ -15,13 +15,23 @@
   python demo.py    # -viz option to visualize output
   ```
 
-2. Install appearance saliency
+2. Install Dense CRF code
+  ```Shell
+  cd videoseg/lib/
+  git clone https://github.com/lucasb-eyer/pydensecrf.git
+  cd pydensecrf/
+  python setup.py build_ext -i
+  PYTHONPATH=.:$PYTHONPATH python examples/inference.py examples/im1.png examples/anno1.png examples/out_new1.png
+  # compare out_new.png and out1.png -- they should be same
+  ```
+
+3. Install appearance saliency
   ```Shell
   cd videoseg/lib/
   git clone https://github.com/ruanxiang/mr_saliency.git
   ```
 
-3. Install kernel temporal segmentation code
+4. Install kernel temporal segmentation code
   ```Shell
   # cd videoseg/lib/
   # wget http://pascal.inrialpes.fr/data2/potapov/med_summaries/kts_ver1.1.tar.gz
@@ -33,31 +43,37 @@
   # (which is mostly present by default).
   ```
 
-4. Convert them to modules
+5. Convert them to modules
   ```Shell
   cd videoseg/lib/
   cp __init__.py mr_saliency/
   cp __init__.py kts/
   ```
 
-5. Run temporal segmentation:
+6. Run temporal segmentation:
   ```Shell
   time python vid2shots.py -imdir /home/dpathak/local/data/trash/my_nlc/imseq/v21/ -out /home/dpathak/local/data/trash/my_nlc/nlc_out/
   ```
 
-6. Run NLC segmentation:
+7. Run NLC segmentation:
   ```Shell
   cd videoseg/src/
   time python nlc.py -imdir /home/dpathak/local/data/trash/my_nlc/imseq/3_tmp/ -out /home/dpathak/local/data/trash/my_nlc/nlc_out/ -maxsp 400 -iters 100
   ```
 
-7. Run Tracker:
+8. Run Tracker:
   ```Shell
   cd videoseg/src/
   time python dm_tracker.py -fgap 2 -seed 2905 -vizTr -dmThresh 0 -shotFrac 0.2 -matchNbr 20 -postTrackHomTh -1 -preTrackHomTh 10
   ```
 
-8. Run Full Pipeline:
+9. Run CRF sample:
+  ```Shell
+  cd videoseg/src/
+  time python crf.py -inIm ../lib/pydensecrf/examples/im1.png -inL ../lib/pydensecrf/examples/anno1.png -out ../lib/pydensecrf/examples/out_new2.png
+  ```
+
+10. Run Full Pipeline:
   ```Shell
   cd videoseg/src/
   time python run_full.py -out /home/dpathak/local/data/AllSegInit -in /home/dpathak/fbcode/experimental/deeplearning/dpathak/videoseg/datasets/imdir_ALL_21.txt

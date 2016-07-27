@@ -7,14 +7,16 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 # from __future__ import unicode_literals
+import sys
+import time
 from PIL import Image
 import numpy as np
 from scipy.misc import imresize
 import _init_paths  # noqa
 import utils
-import pydensecrf.densecrf as dcrf
 import nlc
 import vid2shots
+import crf
 
 
 def parse_args():
@@ -56,6 +58,7 @@ def demo_images():
     colBins = 40
 
     # For NLC:
+    redirect = True  # redirecting to output file ? won't print status
     frameGap = 0  # 0 means adjusted automatically per shot (not per video)
     maxSide = 650  # max length of longer side of Im
     minShot = 10  # minimum shot length
@@ -64,6 +67,11 @@ def demo_images():
     clear_blobs = True  # remove low energy blobs; uses binTh
     maxsp = 400
     iters = 100
+
+    # For CRF:
+    gtProb = 0.7
+    posTh = binTh
+    negTh = 0.3
 
     # parse commandline parameters
     args = parse_args()
@@ -96,11 +104,15 @@ def demo_images():
         outNlcPy = '/'.join(outNlcPy)
         outCrf = '/'.join(outCrf)
         outIm = '/'.join(outIm)
+        outVidNlc = args.baseOutdir + '/crfvid/'
+        outVidCRF = args.baseOutdir + '/nlcvid/'
 
         utils.mkdir_p(outNlcIm)
         utils.mkdir_p(outNlcPy)
         utils.mkdir_p(outCrf)
         utils.mkdir_p(outIm)
+        utils.mkdir_p(outVidNlc)
+        utils.mkdir_p(outVidCRF)
         print('Video OutputDir: ', outNlcIm)
 
         # resize images if needed
@@ -139,11 +151,15 @@ def demo_images():
 
             print('\nShot: %d, Shape: ' % (s + 1), imSeq1.shape)
             maskSeq = nlc.nlc(imSeq1, maxsp=maxsp, iters=iters,
-                                outdir=outNlcPy, suffix=suffix, redirect=True)
+                                outdir=outNlcPy, suffix=suffix,
+                                redirect=redirect)
             if clear_blobs:
                 maskSeq = nlc.remove_low_energy_blobs(maskSeq, binTh)
             np.save(outNlcPy + '/mask_%s.npy' % suffix, maskSeq)
 
+            # save as images sequences
+            sTime = time.time()
+            crfSeq = np.zeros(maskSeq.shape, dtype=np.uint8)
             for i in range(maskSeq.shape[0]):
                 mask = (maskSeq[i] > binTh).astype(np.uint8)
                 Image.fromarray(mask).save(
@@ -151,6 +167,27 @@ def demo_images():
                     imPathList1[i].split('/')[-1][:-4] + '.png')
                 Image.fromarray(imSeq1[i]).save(
                     outIm + '/' + imPathList1[i].split('/')[-1])
+                crfSeq[i] = crf.refine_crf(
+                    imSeq1[i], maskSeq[i], gtProb=gtProb, posTh=posTh,
+                    negTh=negTh)
+                Image.fromarray(crfSeq[i]).save(
+                    outCrf + '/' +
+                    imPathList1[i].split('/')[-1][:-4] + '.png')
+                if not redirect:
+                    sys.stdout.write(
+                        'CRF and saving images: [% 5.1f%%]\r' %
+                        (100.0 * float((i + 1) / maskSeq.shape[0])))
+                    sys.stdout.flush()
+            eTime = time.time()
+            print('CRF and saving images finished: %.2f s' % (eTime - sTime))
+
+            # save as video
+            sTime = time.time()
+            vidName = '_'.join(imdir.split('/')[3:]) + '_shot%d.avi' % (s + 1)
+            utils.im2vid(outVidNlc + vidName, imSeq1, maskSeq)
+            utils.im2vid(outVidCRF + vidName, imSeq1, crfSeq)
+            eTime = time.time()
+            print('Saving videos finished: %.2f s' % (eTime - sTime))
 
     return
 

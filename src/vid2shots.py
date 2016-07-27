@@ -65,7 +65,7 @@ def compute_features(im, colBins):
 def vid2shots(imSeq, maxShots=10, vmax=0.1, colBins=40):
     """
     Convert a given video into number of shots
-    imSeq: (n,h,w,c): 0-255: np.uint8
+    imSeq: (n,h,w,c): 0-255: np.uint8: RGB
     shotIdx: (k,): start Index of shot: 0-indexed
     shotScore: (k,): First change ../lib/kts/cpd_auto.py return value to
                      scores2 instead of costs (a bug)
