@@ -494,7 +494,8 @@ def remove_low_energy_blobs(maskSeq, binTh, relSize=0.6):
     return maskSeq
 
 
-def nlc(imSeq, maxsp, iters, outdir, suffix='', redirect=False):
+def nlc(imSeq, maxsp, iters, outdir, suffix='', redirect=False, doload=False,
+            dosave=None):
     """
     Perform Non-local Consensus voting moving object segmentation (NLC)
     Input:
@@ -504,8 +505,8 @@ def nlc(imSeq, maxsp, iters, outdir, suffix='', redirect=False):
     Output:
         maskSeq: (n, h, w) where n > 1: float. FG>0, BG=0. Not thresholded.
     """
-    doload = False
-    dosave = not doload
+    if dosave is None:
+        dosave = not doload
     import sys
     sys.setrecursionlimit(100000)
 

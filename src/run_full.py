@@ -44,6 +44,15 @@ def parse_args():
         help='Shard to work on. Should range between 0 .. numShards-1',
         default=0, type=int)
     parser.add_argument(
+        '-doload', dest='doload',
+        help='load from .npy files already existing run. 0 or 1. Default 0.',
+        default=0, type=int)
+    parser.add_argument(
+        '-dosave', dest='dosave',
+        help='save .npy files at each important step Takes lot of space.' +
+        ' 0 or 1. Default 0.',
+        default=0, type=int)
+    parser.add_argument(
         '-seed', dest='seed',
         help='Random seed for numpy and python.', default=2905, type=int)
 
@@ -87,6 +96,8 @@ def demo_images():
     # parse commandline parameters
     args = parse_args()
     np.random.seed(args.seed)
+    doload = bool(args.doload)
+    dosave = bool(args.dosave)
 
     # read directory names
     with open(args.imdirFile) as f:
@@ -151,7 +162,8 @@ def demo_images():
         shotIdx = vid2shots.vid2shots(imSeq, maxShots=maxShots, vmax=vmax,
                                         colBins=colBins)
         print('Total Shots: ', shotIdx.shape, shotIdx)
-        np.save(outNlcPy + '/shotIdx_%s.npy' % suffix, shotIdx)
+        if dosave:
+            np.save(outNlcPy + '/shotIdx_%s.npy' % suffix, shotIdx)
 
         # Adjust frameGap per shot, and then run NLC per shot
         for s in range(shotIdx.shape[0]):
@@ -172,10 +184,11 @@ def demo_images():
             print('\nShot: %d, Shape: ' % (s + 1), imSeq1.shape)
             maskSeq = nlc.nlc(imSeq1, maxsp=maxsp, iters=iters,
                                 outdir=outNlcPy, suffix=suffix,
-                                redirect=redirect)
+                                redirect=redirect, doload=doload, dosave=dosave)
             if clear_blobs:
                 maskSeq = nlc.remove_low_energy_blobs(maskSeq, binTh)
-            np.save(outNlcPy + '/mask_%s.npy' % suffix, maskSeq)
+            if dosave:
+                np.save(outNlcPy + '/mask_%s.npy' % suffix, maskSeq)
 
             # run crf, run blob removal and save as images sequences
             sTime = time.time()
