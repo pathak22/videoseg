@@ -8,6 +8,7 @@ from __future__ import print_function
 # from __future__ import unicode_literals
 import numpy as np
 import os
+from scipy import ndimage
 
 
 def vid2im(vidPath):
@@ -118,6 +119,41 @@ def draw_point_im(im, loc, col, sizeOut=10):
             loc[n, 0] - sizeIn:loc[n, 0] + sizeIn,
             loc[n, 1] - sizeIn:loc[n, 1] + sizeIn]
     return imNew
+
+
+def refine_blobs(maskSeq, bSize=0.6):
+    """
+    --> Adapted from src/nlc.py:remove_low_energy_blobs()
+    Input:
+        maskSeq: (n, h, w) or (h, w): int. FG=1, BG=0.
+        bSize:
+            (0,1): min relative size of FG blobs to keep compared to largest one
+            >= 1: minimum absolute size of blobs to keep
+            <= 0: not do anything and return
+    Output:
+        maskSeq: same as input
+    """
+    if bSize <= 0:
+        return maskSeq
+
+    if maskSeq.ndim < 3:
+        maskSeq = maskSeq[None, ...]
+
+    for i in range(maskSeq.shape[0]):
+        mask = maskSeq[i]
+        if np.sum(mask) == 0:
+            continue
+        sp1, num = ndimage.label(mask)  # 0 in sp1 is same as 0 in mask i.e. BG
+        count = my_accumarray(sp1, np.ones(sp1.shape), num + 1, 'plus')
+        sizeLargestBlob = np.max(count[1:])
+        th = bSize if bSize >= 1 else bSize * sizeLargestBlob
+        destroyFG = count[1:] <= th
+        destroyFG = np.concatenate(([False], destroyFG))
+        maskSeq[i][destroyFG[sp1]] = 0
+
+    if maskSeq.shape[0] == 1:
+        return maskSeq[0]
+    return maskSeq
 
 
 def my_accumarray(indices, vals, size, func='plus', fill_value=0):

@@ -26,6 +26,30 @@ def refine_crf(im, lb, gtProb=0.5, posTh=None, negTh=None):
             label=0 to region with negTh<prob<posTh
     out: (h,w): 0-n: np.uint8: with label space same as lb
     """
+    # Hard coded CRF parameters
+    iters = 5
+
+    # Default Params
+    # xy_gauss = 3
+    # wt_gauss = 3
+    # xy_bilateral = 80
+    # rgb_bilateral = 13
+    # wt_bilateral = 10
+
+    # untuned ICCV params
+    # xy_gauss = 6
+    # wt_gauss = 6
+    # xy_bilateral = 50
+    # rgb_bilateral = 4
+    # wt_bilateral = 5
+
+    # Deeplab Params
+    xy_gauss = 19
+    wt_gauss = 15
+    xy_bilateral = 61
+    rgb_bilateral = 10
+    wt_bilateral = 35
+
     # take care of probability mask
     if lb.dtype == np.float32 or lb.dtype == np.float64:
         if posTh is None or negTh is None:
@@ -50,13 +74,16 @@ def refine_crf(im, lb, gtProb=0.5, posTh=None, negTh=None):
     d.setUnaryEnergy(U)
 
     # This adds the color-independent term, features are the locations only.
-    d.addPairwiseGaussian(sxy=(3, 3), compat=3)
+    d.addPairwiseGaussian(sxy=(xy_gauss, xy_gauss), compat=wt_gauss)
 
     # This adds the color-dependent term, i.e. features are (x,y,r,g,b).
-    d.addPairwiseBilateral(sxy=(80, 80), srgb=(13, 13, 13), rgbim=im, compat=10)
+    d.addPairwiseBilateral(
+        sxy=(xy_bilateral, xy_bilateral),
+        srgb=(rgb_bilateral, rgb_bilateral, rgb_bilateral),
+        rgbim=im, compat=wt_bilateral)
 
     # Do inference and compute map
-    Q = d.inference(5)
+    Q = d.inference(iters)
     MAP = np.argmax(Q, axis=0).astype('float32')
     MAP *= 1 / MAP.max()
     MAP = MAP.reshape(im.shape[:2])

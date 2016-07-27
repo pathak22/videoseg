@@ -73,6 +73,9 @@ def demo_images():
     posTh = binTh
     negTh = 0.3
 
+    # For blob removal post CRF: more like salt-pepper noise removal
+    bSize = 25  # 0 means not used, [0,1] relative, >=1 means absolute
+
     # parse commandline parameters
     args = parse_args()
     np.random.seed(args.seed)
@@ -157,7 +160,7 @@ def demo_images():
                 maskSeq = nlc.remove_low_energy_blobs(maskSeq, binTh)
             np.save(outNlcPy + '/mask_%s.npy' % suffix, maskSeq)
 
-            # save as images sequences
+            # run crf, run blob removal and save as images sequences
             sTime = time.time()
             crfSeq = np.zeros(maskSeq.shape, dtype=np.uint8)
             for i in range(maskSeq.shape[0]):
@@ -170,16 +173,18 @@ def demo_images():
                 crfSeq[i] = crf.refine_crf(
                     imSeq1[i], maskSeq[i], gtProb=gtProb, posTh=posTh,
                     negTh=negTh)
+                crfSeq[i] = utils.refine_blobs(crfSeq[i], bSize=bSize)
                 Image.fromarray(crfSeq[i]).save(
                     outCrf + '/' +
                     imPathList1[i].split('/')[-1][:-4] + '.png')
                 if not redirect:
                     sys.stdout.write(
-                        'CRF and saving images: [% 5.1f%%]\r' %
+                        'CRF, blob removal and saving: [% 5.1f%%]\r' %
                         (100.0 * float((i + 1) / maskSeq.shape[0])))
                     sys.stdout.flush()
             eTime = time.time()
-            print('CRF and saving images finished: %.2f s' % (eTime - sTime))
+            print('CRF, blob removal and saving images finished: %.2f s' %
+                    (eTime - sTime))
 
             # save as video
             sTime = time.time()
