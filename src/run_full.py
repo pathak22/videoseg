@@ -36,6 +36,14 @@ def parse_args():
         ' Each imdir will be read alphabetically for video image sequence.',
         type=str)
     parser.add_argument(
+        '-numShards', dest='numShards',
+        help='Number of shards for parallel running',
+        default=1, type=int)
+    parser.add_argument(
+        '-shardId', dest='shardId',
+        help='Shard to work on. Should range between 0 .. numShards-1',
+        default=0, type=int)
+    parser.add_argument(
         '-seed', dest='seed',
         help='Random seed for numpy and python.', default=2905, type=int)
 
@@ -84,6 +92,15 @@ def demo_images():
     with open(args.imdirFile) as f:
         imDirs = f.readlines()
     imDirs = [line.rstrip('\n') for line in imDirs]
+
+    # keep only the current shard
+    if args.shardId >= args.numShards:
+        print('Give valid shard id which is less than numShards')
+        exit(1)
+    imDirs = [
+        x for i, x in enumerate(imDirs) if i % args.numShards == args.shardId]
+    print('NUM SHARDS: %03d,  SHARD ID: %03d,  CURRENT NUM VIDEOS: %03d\n\n' %
+            (args.numShards, args.shardId, len(imDirs)))
 
     for imdir in imDirs:
         # setup input directory
