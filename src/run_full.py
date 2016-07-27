@@ -124,8 +124,8 @@ def demo_images():
         outNlcPy = '/'.join(outNlcPy)
         outCrf = '/'.join(outCrf)
         outIm = '/'.join(outIm)
-        outVidNlc = args.baseOutdir + '/crfvid/'
-        outVidCRF = args.baseOutdir + '/nlcvid/'
+        outVidNlc = args.baseOutdir + '/nlcvid/'
+        outVidCRF = args.baseOutdir + '/crfvid/'
 
         utils.mkdir_p(outNlcIm)
         utils.mkdir_p(outNlcPy)
@@ -206,7 +206,8 @@ def demo_images():
             # save as video
             sTime = time.time()
             vidName = '_'.join(imdir.split('/')[3:]) + '_shot%d.avi' % (s + 1)
-            utils.im2vid(outVidNlc + vidName, imSeq1, maskSeq)
+            utils.im2vid(outVidNlc + vidName, imSeq1,
+                            (maskSeq > binTh).astype(np.uint8))
             utils.im2vid(outVidCRF + vidName, imSeq1, crfSeq)
             eTime = time.time()
             print('Saving videos finished: %.2f s' % (eTime - sTime))
