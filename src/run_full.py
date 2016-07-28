@@ -53,6 +53,10 @@ def parse_args():
         ' 0 or 1. Default 0.',
         default=0, type=int)
     parser.add_argument(
+        '-crfParams', dest='crfParams',
+        help='CRF Params: default=0, deeplab=1, ccnn=2. Default is 0.',
+        default=0, type=int)
+    parser.add_argument(
         '-seed', dest='seed',
         help='Random seed for numpy and python.', default=2905, type=int)
 
@@ -203,7 +207,7 @@ def demo_images():
                     outIm + '/' + imPathList1[i].split('/')[-1])
                 crfSeq[i] = crf.refine_crf(
                     imSeq1[i], maskSeq[i], gtProb=gtProb, posTh=posTh,
-                    negTh=negTh)
+                    negTh=negTh, crfParams=args.crfParams)
                 crfSeq[i] = utils.refine_blobs(crfSeq[i], bSize=bSize)
                 Image.fromarray(crfSeq[i]).save(
                     outCrf + '/' +

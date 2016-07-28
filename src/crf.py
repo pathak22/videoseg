@@ -12,7 +12,7 @@ import pydensecrf.densecrf as dcrf
 from pydensecrf.utils import compute_unary
 
 
-def refine_crf(im, lb, gtProb=0.5, posTh=None, negTh=None):
+def refine_crf(im, lb, gtProb=0.5, posTh=None, negTh=None, crfParams=0):
     """
     Convert a given video into number of shots
     im: (h,w,c): 0-255: np.uint8: RGB
@@ -24,31 +24,36 @@ def refine_crf(im, lb, gtProb=0.5, posTh=None, negTh=None):
             label=2 to region with prob>=posTh
             label=1 to region with prob<=negTh
             label=0 to region with negTh<prob<posTh
+    crfParams:
+        value: 0: default crf params
+        value: 1: deeplab crf params
+        value: 2: ccnn crf params
     out: (h,w): 0-n: np.uint8: with label space same as lb
     """
     # Hard coded CRF parameters
     iters = 5
 
-    # Default Params
-    # xy_gauss = 3
-    # wt_gauss = 3
-    # xy_bilateral = 80
-    # rgb_bilateral = 13
-    # wt_bilateral = 10
-
-    # untuned ICCV params
-    # xy_gauss = 6
-    # wt_gauss = 6
-    # xy_bilateral = 50
-    # rgb_bilateral = 4
-    # wt_bilateral = 5
-
-    # Deeplab Params
-    xy_gauss = 19
-    wt_gauss = 15
-    xy_bilateral = 61
-    rgb_bilateral = 10
-    wt_bilateral = 35
+    if crfParams == 1:
+        # Deeplab Params
+        xy_gauss = 19
+        wt_gauss = 15
+        xy_bilateral = 61
+        rgb_bilateral = 10
+        wt_bilateral = 35
+    elif crfParams == 2:
+        # untuned ccnn params
+        xy_gauss = 6
+        wt_gauss = 6
+        xy_bilateral = 50
+        rgb_bilateral = 4
+        wt_bilateral = 5
+    else:
+        # Default Params
+        xy_gauss = 3
+        wt_gauss = 3
+        xy_bilateral = 80
+        rgb_bilateral = 13
+        wt_bilateral = 10
 
     # take care of probability mask
     if lb.dtype == np.float32 or lb.dtype == np.float64:
