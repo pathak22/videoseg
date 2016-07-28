@@ -58,6 +58,15 @@ def refine_crf(im, lb, gtProb=0.5, posTh=None, negTh=None):
         lb1 = np.zeros(lb.shape, dtype=np.uint8)
         lb1[lb >= posTh] = 2
         lb1[lb <= negTh] = 1
+        presentLb = np.unique(lb1)
+        if presentLb.size < 3:
+            if 2 not in presentLb:
+                y, x = int(lb.shape[0] / 2), int(lb.shape[1] / 2)
+                lb1[y - 1:y + 1, x - 1:x + 1] = 2  # center area
+            if 1 not in presentLb:
+                lb1[0, :] = 1  # top row: likely to be FG
+            if 0 not in presentLb:
+                lb1[0, :] = 0  # top row: doesn't matter
         lb = lb1
 
     # convert to BGR
