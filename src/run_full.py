@@ -176,10 +176,11 @@ def demo_images():
             if shotL < minShot:
                 continue
 
-            if frameGap <= 0 and shotL > maxShot:
-                frameGap = int(shotL / maxShot)
-            imPathList1 = imPathList[shotS:shotE:frameGap + 1]
-            imSeq1 = imSeq[shotS:shotE:frameGap + 1]
+            frameGapLocal = frameGap
+            if frameGapLocal <= 0 and shotL > maxShot:
+                frameGapLocal = int(shotL / maxShot)
+            imPathList1 = imPathList[shotS:shotE:frameGapLocal + 1]
+            imSeq1 = imSeq[shotS:shotE:frameGapLocal + 1]
 
             print('\nShot: %d, Shape: ' % (s + 1), imSeq1.shape)
             maskSeq = nlc.nlc(imSeq1, maxsp=maxsp, iters=iters,
