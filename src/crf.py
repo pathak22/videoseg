@@ -67,11 +67,11 @@ def refine_crf(im, lb, gtProb=0.5, posTh=None, negTh=None, crfParams=0):
         if presentLb.size < 3:
             if 2 not in presentLb:
                 y, x = int(lb.shape[0] / 2), int(lb.shape[1] / 2)
-                lb1[y - 1:y + 1, x - 1:x + 1] = 2  # center area
+                lb1[y - 1:y + 1, x - 1:x + 1] = 2  # center area as FG
             if 1 not in presentLb:
-                lb1[0, :] = 1  # top row: likely to be FG
+                lb1[0, :] = 1  # top row as BG
             if 0 not in presentLb:
-                lb1[0, :] = 0  # top row: doesn't matter
+                lb1[1, :] = 0  # second row: doesn't matter
         lb = lb1
 
     # convert to BGR
