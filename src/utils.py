@@ -90,7 +90,7 @@ def rmdir_f(path):
 
 def read_r(indir, pattern):
     """
-    It deletes directory recursively if it exist
+    It reads filname containing input pattern recursively if indir exists
     """
     import glob
     flist = sorted([y for (x, _, _) in os.walk(indir)
@@ -160,6 +160,8 @@ def my_accumarray(indices, vals, size, func='plus', fill_value=0):
     """
     Implementing python equivalent of matlab accumarray.
     Taken from SDS repo: master/superpixel_representation.py#L36-L46
+        indices: must be a numpy array (any shape)
+        vals: numpy array of same shape as indices or a scalar
     """
 
     # get dictionary

@@ -90,20 +90,23 @@ def color_hist(im, colBins):
     arr = np.concatenate((im, color.rgb2lab(im)), axis=2).reshape((-1, 6))
     desc = np.zeros((colBins * 6,), dtype=np.float)
     for i in range(3):
-        desc[i:i + colBins], _ = np.histogram(
+        desc[i * colBins:(i + 1) * colBins], _ = np.histogram(
             arr[:, i], bins=colBins, range=(0, 255))
-        desc[i:i + colBins] /= np.sum(desc[i:i + colBins]) + (
-            np.sum(desc[i:i + colBins]) < 1e-4)
+        desc[i * colBins:(i + 1) * colBins] /= np.sum(
+            desc[i * colBins:(i + 1) * colBins]) + (
+            np.sum(desc[i * colBins:(i + 1) * colBins]) < 1e-4)
     i += 1
-    desc[i:i + colBins], _ = np.histogram(
+    desc[i * colBins:(i + 1) * colBins], _ = np.histogram(
         arr[:, i], bins=colBins, range=(0, 100))
-    desc[i:i + colBins] /= np.sum(desc[i:i + colBins]) + (
-        np.sum(desc[i:i + colBins]) < 1e-4)
+    desc[i * colBins:(i + 1) * colBins] /= np.sum(
+        desc[i * colBins:(i + 1) * colBins]) + (
+        np.sum(desc[i * colBins:(i + 1) * colBins]) < 1e-4)
     for i in range(4, 6):
-        desc[i:i + colBins], _ = np.histogram(
+        desc[i * colBins:(i + 1) * colBins], _ = np.histogram(
             arr[:, i], bins=colBins, range=(-128, 127))
-        desc[i:i + colBins] /= np.sum(desc[i:i + colBins]) + (
-            np.sum(desc[i:i + colBins]) < 1e-4)
+        desc[i * colBins:(i + 1) * colBins] /= np.sum(
+            desc[i * colBins:(i + 1) * colBins]) + (
+            np.sum(desc[i * colBins:(i + 1) * colBins]) < 1e-4)
     return desc
 
 
@@ -235,7 +238,8 @@ def normalize_nn(transM, sigma=1):
 
 def compute_saliency(imSeq, flowSz=100, flowBdd=12.5, flowF=3, flowWinSz=10,
                         flowMagTh=1, flowDirTh=0.75, numDomFTh=0.5,
-                        flowDirBins=10, patchSz=5, redirect=False):
+                        flowDirBins=10, patchSz=5, redirect=False,
+                        doNormalize=True, defaultToAppearance=True):
     """
     Initialize for FG/BG votes by Motion or Appearance Saliency. FG>0, BG=0.
     Input:
@@ -359,7 +363,7 @@ def compute_saliency(imSeq, flowSz=100, flowBdd=12.5, flowF=3, flowWinSz=10,
     eTime = time.time()
     print('Motion Saliency computation finished: %.2f s' % (eTime - sTime))
 
-    if numDomFrames < n * numDomFTh:
+    if numDomFrames < n * numDomFTh and defaultToAppearance:
         print('Motion Saliency not enough.. using appearance.')
         sTime = time.time()
         mr = MR.MR_saliency()
@@ -387,7 +391,7 @@ def compute_saliency(imSeq, flowSz=100, flowBdd=12.5, flowF=3, flowWinSz=10,
             exclude:-exclude, exclude:-exclude]
 
     # normalize full video, and NOT per frame
-    if np.max(salImSeqOrig) > 0:
+    if np.max(salImSeqOrig) > 0 and doNormalize:
         salImSeqOrig /= np.max(salImSeqOrig)
 
     return salImSeqOrig
@@ -466,36 +470,49 @@ def votes2mask(votes, sp):
     return maskSeq
 
 
-def remove_low_energy_blobs(maskSeq, binTh, relSize=0.6):
+def remove_low_energy_blobs(maskSeq, binTh, relSize=0.6, relEnergy=None,
+                                target=None):
     """
     Input:
         maskSeq: (n, h, w) where n > 1: float. FG>0, BG=0. Not thresholded.
-        binTh: binary threshold for maskSeq: [0, max(maskSeq)]
+        binTh: binary threshold for maskSeq for finding blobs: [0, max(maskSeq)]
         relSize: [0,1]: size of FG blobs to keep compared to largest one
+                        Only used if relEnergy is None.
+        relEnergy: Ideally it should be <= binTh. Kill blobs whose:
+                    (total energy <= relEnergy * numPixlesInBlob)
+                   If relEnergy is given, relSize is not used.
+        target: value to which set the low energy blobs to.
+                Default: binTh-epsilon. Must be less than binTh.
     Output:
         maskSeq: (n, h, w) where n > 1: float. FG>0, BG=0. Not thresholded. It
                  has same values as input, except the low energy blobs where its
-                 value is binTh-epsilon.
+                 value is target.
     """
     sTime = time.time()
-    epsilon = 1e-5
+    if target is None:
+        target = binTh - 1e-5
     for i in range(maskSeq.shape[0]):
         mask = (maskSeq[i] > binTh).astype(np.uint8)
         if np.sum(mask) == 0:
             continue
         sp1, num = ndimage.label(mask)  # 0 in sp1 is same as 0 in mask i.e. BG
         count = utils.my_accumarray(sp1, np.ones(sp1.shape), num + 1, 'plus')
-        sizeLargestBlob = np.max(count[1:])
-        destroyFG = count[1:] < relSize * sizeLargestBlob
+        if relEnergy is not None:
+            sumScore = utils.my_accumarray(sp1, maskSeq[i], num + 1, 'plus')
+            destroyFG = sumScore[1:] < relEnergy * count[1:]
+        else:
+            sizeLargestBlob = np.max(count[1:])
+            destroyFG = count[1:] < relSize * sizeLargestBlob
         destroyFG = np.concatenate(([False], destroyFG))
-        maskSeq[i][destroyFG[sp1]] = binTh - epsilon
+        maskSeq[i][destroyFG[sp1]] = target
     eTime = time.time()
     print('Removing low energy blobs finished: %.2f s' % (eTime - sTime))
     return maskSeq
 
 
-def nlc(imSeq, maxsp, iters, outdir, suffix='', redirect=False, doload=False,
-            dosave=None):
+def nlc(imSeq, maxsp, iters, outdir, suffix='',
+            clearBlobs=False, binTh=None, relEnergy=None,
+            redirect=False, doload=False, dosave=None):
     """
     Perform Non-local Consensus voting moving object segmentation (NLC)
     Input:
@@ -538,13 +555,26 @@ def nlc(imSeq, maxsp, iters, outdir, suffix='', redirect=False, doload=False,
         np.save(outdir + '/transM_%s.npy' % suffix, transM)
         np.save(outdir + '/salImSeq_%s.npy' % suffix, salImSeq)
 
+    # create transition matrix
+    transM = normalize_nn(transM, sigma=np.sqrt(0.1))
+
     # get initial votes from saliency salscores
     votes = salScore2votes(salImSeq, sp)
     assert votes.shape[0] == regions.shape[0], "Should be same, some bug !"
 
     # run consensus voting
-    transM = normalize_nn(transM, sigma=0.1)
-    votes = consensus_vote(votes, transM, frameEnd, iters)
+    if clearBlobs and binTh is not None and relEnergy is not None:
+        miniBatch = 5
+        print('Intermediate blob removal is ON... %d times' % miniBatch)
+        iterBatch = int(iters / miniBatch)
+        for i in range(miniBatch):
+            votes = consensus_vote(votes, transM, frameEnd, iterBatch)
+            maskSeq = votes2mask(votes, sp)
+            maskSeq = remove_low_energy_blobs(
+                maskSeq, binTh=binTh, relEnergy=relEnergy, target=binTh / 4.)
+            votes = salScore2votes(maskSeq, sp)
+    else:
+        votes = consensus_vote(votes, transM, frameEnd, iters)
 
     # project votes to images to obtain masks -- inverse of accumarray
     maskSeq = votes2mask(votes, sp)
@@ -596,7 +626,7 @@ def demo_images():
     maxSide = 600  # max length of longer side of Im
     lenSeq = 35  # longer seq will be shrinked between [lenSeq/2, lenSeq]
     binTh = 0.4  # final thresholding to obtain mask
-    clear_blobs = True  # remove low energy blobs; uses binTh
+    clearFinalBlobs = True  # remove low energy blobs; uses binTh
 
     # parse commandline parameters
     args = parse_args()
@@ -650,7 +680,7 @@ def demo_images():
     np.save(args.outdir + '/mask_%s.npy' % suffix, maskSeq)
 
     # save visual results
-    if clear_blobs:
+    if clearFinalBlobs:
         maskSeq = remove_low_energy_blobs(maskSeq, binTh)
     utils.rmdir_f(args.outdir + '/result_%s/' % suffix)
     utils.mkdir_p(args.outdir + '/result_%s/' % suffix)
@@ -679,7 +709,7 @@ def demo_videos():
     maxSide = 600  # max length of longer side of Im
     lenSeq = 35  # longer seq will be shrinked between [lenSeq/2, lenSeq]
     binTh = 0.4  # final thresholding to obtain mask
-    clear_blobs = True  # remove low energy blobs; uses binTh
+    clearFinalBlobs = True  # remove low energy blobs; uses binTh
     vidDir = '/home/dpathak/local/data/trash/videos'
 
     # parse commandline parameters
@@ -727,7 +757,7 @@ def demo_videos():
         np.save(outdirV + '/mask_%s.npy' % suffix, maskSeq)
 
         # save visual results
-        if clear_blobs:
+        if clearFinalBlobs:
             maskSeq = remove_low_energy_blobs(maskSeq, binTh)
         utils.rmdir_f(outdirV + '/result_%s/' % suffix)
         utils.mkdir_p(outdirV + '/result_%s/' % suffix)

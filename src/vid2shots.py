@@ -28,20 +28,23 @@ def color_hist(im, colBins):
     arr = np.concatenate((im, color.rgb2lab(im)), axis=2).reshape((-1, 6))
     desc = np.zeros((colBins * 6,), dtype=np.float)
     for i in range(3):
-        desc[i:i + colBins], _ = np.histogram(
+        desc[i * colBins:(i + 1) * colBins], _ = np.histogram(
             arr[:, i], bins=colBins, range=(0, 255))
-        desc[i:i + colBins] /= np.sum(desc[i:i + colBins]) + (
-            np.sum(desc[i:i + colBins]) < 1e-4)
+        desc[i * colBins:(i + 1) * colBins] /= np.sum(
+            desc[i * colBins:(i + 1) * colBins]) + (
+            np.sum(desc[i * colBins:(i + 1) * colBins]) < 1e-4)
     i += 1
-    desc[i:i + colBins], _ = np.histogram(
+    desc[i * colBins:(i + 1) * colBins], _ = np.histogram(
         arr[:, i], bins=colBins, range=(0, 100))
-    desc[i:i + colBins] /= np.sum(desc[i:i + colBins]) + (
-        np.sum(desc[i:i + colBins]) < 1e-4)
+    desc[i * colBins:(i + 1) * colBins] /= np.sum(
+        desc[i * colBins:(i + 1) * colBins]) + (
+        np.sum(desc[i * colBins:(i + 1) * colBins]) < 1e-4)
     for i in range(4, 6):
-        desc[i:i + colBins], _ = np.histogram(
+        desc[i * colBins:(i + 1) * colBins], _ = np.histogram(
             arr[:, i], bins=colBins, range=(-128, 127))
-        desc[i:i + colBins] /= np.sum(desc[i:i + colBins]) + (
-            np.sum(desc[i:i + colBins]) < 1e-4)
+        desc[i * colBins:(i + 1) * colBins] /= np.sum(
+            desc[i * colBins:(i + 1) * colBins]) + (
+            np.sum(desc[i * colBins:(i + 1) * colBins]) < 1e-4)
     return desc
 
 
@@ -62,7 +65,7 @@ def compute_features(im, colBins):
     return colHist
 
 
-def vid2shots(imSeq, maxShots=10, vmax=0.1, colBins=40):
+def vid2shots(imSeq, maxShots=5, vmax=0.6, colBins=40):
     """
     Convert a given video into number of shots
     imSeq: (n,h,w,c): 0-255: np.uint8: RGB
@@ -75,7 +78,7 @@ def vid2shots(imSeq, maxShots=10, vmax=0.1, colBins=40):
     for i in range(imSeq.shape[0]):
         X[i] = compute_features(imSeq[i], colBins)
     K = np.dot(X, X.T)
-    shotIdx, _ = cpd_auto(K, maxShots, vmax)
+    shotIdx, _ = cpd_auto(K, maxShots - 1, vmax)
     shotIdx = np.concatenate(([0], shotIdx))
     return shotIdx
 
@@ -102,16 +105,16 @@ def parse_args():
         default=0, type=int)
     parser.add_argument(
         '-n', dest='maxShots',
-        help='Max number of shots to break into. Default 10.',
-        default=10, type=int)
+        help='Max number of shots to break into. Default 5.',
+        default=5, type=int)
     parser.add_argument(
         '-d', dest='colBins',
         help='Number of bins in RGBLAB histogram. Default 40. ',
         default=40, type=int)
     parser.add_argument(
         '-v', dest='vmax',
-        help='Parameter for KTS, lower value means more clips. Default 0.2.',
-        default=0.2, type=float)
+        help='Parameter for KTS, lower value means more clips. Default 0.6.',
+        default=0.6, type=float)
     parser.add_argument(
         '-seed', dest='seed',
         help='Random seed for numpy and python.', default=2905, type=int)

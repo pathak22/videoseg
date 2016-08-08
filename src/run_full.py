@@ -74,8 +74,8 @@ def demo_images():
     # DAVIS has 60-70 images per video
 
     # For Shot:
-    maxShots = 10
-    vmax = 0.2
+    maxShots = 5
+    vmax = 0.6
     colBins = 40
 
     # For NLC:
@@ -84,15 +84,17 @@ def demo_images():
     maxSide = 650  # max length of longer side of Im
     minShot = 10  # minimum shot length
     maxShot = 110  # longer shots will be shrinked between [maxShot/2, maxShot]
-    binTh = 0.5  # final thresholding to obtain mask
-    clear_blobs = True  # remove low energy blobs; uses binTh
+    binTh = 0.7  # final thresholding to obtain mask
+    clearVoteBlobs = True  # remove small blobs in consensus vote; uses binTh
+    relEnergy = binTh - 0.1  # relative energy in consensus vote blob removal
+    clearFinalBlobs = True  # remove small blobs finally; uses binTh
     maxsp = 400
-    iters = 100
+    iters = 50
 
     # For CRF:
     gtProb = 0.7
     posTh = binTh
-    negTh = 0.3
+    negTh = 0.4
 
     # For blob removal post CRF: more like salt-pepper noise removal
     bSize = 25  # 0 means not used, [0,1] relative, >=1 means absolute
@@ -121,19 +123,34 @@ def demo_images():
         # setup input directory
         print('-------------------------------------------------------------\n')
         print('Video InputDir: ', imdir)
-        imPathList = utils.read_r(imdir, '*.jpg')
+        numTries = 0
+        totalTries = 2
+        sleepTime = 60
+        while numTries < totalTries:
+            imPathList = utils.read_r(imdir, '*.jpg')
+            # imPathList = imPathList + utils.read_r(imdir, '*.bmp')
+            if len(imPathList) < 1:
+                print('Failed to load ! Trying again in %d seconds' % sleepTime)
+                numTries += 1
+                time.sleep(sleepTime)  # delays for x seconds
+            else:
+                break
         if len(imPathList) < 2:
             print('Not enough images in image directory: \n%s' % imdir)
-            print('Continuing to next one ...')
-            continue
+            # print('Continuing to next one ...')
+            # continue
+            assert False, 'Image directory does not exist !!'
 
         # setup output directory
         suffix = imdir.split('/')[-1]
         suffix = imdir.split('/')[-2] if suffix == '' else suffix
-        outNlcIm = args.baseOutdir.split('/') + ['nlcim'] + imdir.split('/')[3:]
+        outNlcIm = args.baseOutdir.split('/') + \
+            ['nlcim', 'shard%03d' % args.shardId] + imdir.split('/')[3:]
         outNlcPy = args.baseOutdir.split('/') + ['nlcpy'] + imdir.split('/')[3:]
-        outCrf = args.baseOutdir.split('/') + ['crf'] + imdir.split('/')[3:]
-        outIm = args.baseOutdir.split('/') + ['im'] + imdir.split('/')[3:]
+        outCrf = args.baseOutdir.split('/') + \
+            ['crfim', 'shard%03d' % args.shardId] + imdir.split('/')[3:]
+        outIm = args.baseOutdir.split('/') + \
+            ['im', 'shard%03d' % args.shardId] + imdir.split('/')[3:]
 
         outNlcIm = '/'.join(outNlcIm)
         outNlcPy = '/'.join(outNlcPy)
@@ -163,15 +180,18 @@ def demo_images():
                 imSeq[i] = np.array(Image.open(imPathList[i]))
 
         # First run shot detector
-        shotIdx = vid2shots.vid2shots(imSeq, maxShots=maxShots, vmax=vmax,
-                                        colBins=colBins)
+        if not doload:
+            shotIdx = vid2shots.vid2shots(imSeq, maxShots=maxShots, vmax=vmax,
+                                            colBins=colBins)
+            if dosave:
+                np.save(outNlcPy + '/shotIdx_%s.npy' % suffix, shotIdx)
+        else:
+            shotIdx = np.load(outNlcPy + '/shotIdx_%s.npy' % suffix)
         print('Total Shots: ', shotIdx.shape, shotIdx)
-        if dosave:
-            np.save(outNlcPy + '/shotIdx_%s.npy' % suffix, shotIdx)
 
         # Adjust frameGap per shot, and then run NLC per shot
         for s in range(shotIdx.shape[0]):
-            suffix = suffix + '_shot%d' % (s + 1)
+            suffixShot = suffix + '_shot%d' % (s + 1)
 
             shotS = shotIdx[s]  # 0-indexed, included
             shotE = imSeq.shape[0] if s == shotIdx.shape[0] - 1 \
@@ -187,19 +207,27 @@ def demo_images():
             imSeq1 = imSeq[shotS:shotE:frameGapLocal + 1]
 
             print('\nShot: %d, Shape: ' % (s + 1), imSeq1.shape)
-            maskSeq = nlc.nlc(imSeq1, maxsp=maxsp, iters=iters,
-                                outdir=outNlcPy, suffix=suffix,
-                                redirect=redirect, doload=doload, dosave=dosave)
-            if clear_blobs:
-                maskSeq = nlc.remove_low_energy_blobs(maskSeq, binTh)
-            if dosave:
-                np.save(outNlcPy + '/mask_%s.npy' % suffix, maskSeq)
+            if not doload:
+                maskSeq = nlc.nlc(imSeq1, maxsp=maxsp, iters=iters,
+                                    outdir=outNlcPy, suffix=suffixShot,
+                                    clearBlobs=clearVoteBlobs, binTh=binTh,
+                                    relEnergy=relEnergy,
+                                    redirect=redirect, doload=doload,
+                                    dosave=dosave)
+                if clearFinalBlobs:
+                    maskSeq = nlc.remove_low_energy_blobs(maskSeq, binTh)
+                if dosave:
+                    np.save(outNlcPy + '/mask_%s.npy' % suffixShot, maskSeq)
+            if doload:
+                maskSeq = np.load(outNlcPy + '/mask_%s.npy' % suffixShot)
 
             # run crf, run blob removal and save as images sequences
             sTime = time.time()
             crfSeq = np.zeros(maskSeq.shape, dtype=np.uint8)
             for i in range(maskSeq.shape[0]):
-                mask = (maskSeq[i] > binTh).astype(np.uint8)
+                # save soft score as png between 0 to 100.
+                # Use binTh*100 to get FG in later usage.
+                mask = (maskSeq[i] * 100).astype(np.uint8)
                 Image.fromarray(mask).save(
                     outNlcIm + '/' +
                     imPathList1[i].split('/')[-1][:-4] + '.png')
@@ -229,6 +257,14 @@ def demo_images():
             utils.im2vid(outVidCRF + vidName, imSeq1, crfSeq)
             eTime = time.time()
             print('Saving videos finished: %.2f s' % (eTime - sTime))
+
+    # Tarzip the results of this shard and delete the individual files
+    import subprocess
+    for i in ['im', 'crfim', 'nlcim']:
+        tarDir = args.baseOutdir + '/%s/shard%03d' % (i, args.shardId)
+        subprocess.call(['tar', '-zcf', tarDir + '.tar.gz', '-C',
+                        tarDir, '.'])
+        utils.rmdir_f(tarDir)
 
     return
 

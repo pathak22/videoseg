@@ -1,6 +1,5 @@
 """
-To run:
-python eval_seg.py -src ../datasets/gt_all.txt -target ../datasets/nlcgt_all.txt
+To run: see eval_seg_batch.sh
 """
 
 from __future__ import absolute_import
@@ -94,15 +93,15 @@ def compute_hist(args):
 
         im1 = np.array(Image.open(srcIm))
         im2 = np.array(Image.open(targetIm))
-        im1 = (im1 > 0).astype(np.uint8)
-        im2 = (im2 > 0).astype(np.uint8)
+        im1 = (im1 > 0).astype(np.uint8)  # take all instances in FG
+        im2 = (im2 > 0).astype(np.uint8)  # take all instances in FG
         if im2.size != im1.size:
             im1 = cv2.resize(im1, im2.shape, interpolation=cv2.INTER_NEAREST)
             if np.unique(im1).size > ncl:
                 print('Integral resize bug !')
                 exit(1)
 
-        if (im2.sum() < args.fgL * 0.01 * im2.size or
+        if (im2.sum() <= args.fgL * 0.01 * im2.size or
                 im2.sum() > args.fgU * 0.01 * im2.size):
             ignoreCount += 1
             continue
@@ -165,14 +164,14 @@ def seg_tests(args):
     # pretty print
     print('Pretty Output for Sheet:')
     print('Ignored # Im, Compared # Im, FG Lower, FG Upper, IoU LowerTh, ' +
-            'IoU mean, IoU FG, IoU BG, mean Acc, overall Acc, FG Precision,' +
-            ' FG Recall, BG Precision, BG Recall')
+            'mean Acc, overall Acc, IoU mean, IoU FG, FG Precision,' +
+            ' FG Recall, IoU BG, BG Precision, BG Recall')
     print(
         '=SPLIT(\"',
         '%d %d %.1f %.1f %.1f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f' %
-        (ignore, comp, args.fgL, args.fgU, args.iouL, np.nanmean(iu) * 100,
-            iu2[1], iu2[0], np.nanmean(acc2), acc1, precision[1], recall[1],
-            precision[0], recall[0]),
+        (ignore, comp, args.fgL, args.fgU, args.iouL, np.nanmean(acc2), acc1,
+            np.nanmean(iu) * 100, iu2[1], precision[1], recall[1],
+            iu2[0], precision[0], recall[0]),
         '\",\" \")')
 
 

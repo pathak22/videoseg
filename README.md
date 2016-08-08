@@ -76,5 +76,5 @@
 10. Run Full Pipeline:
   ```Shell
   cd videoseg/src/
-  time python run_full.py -out /home/dpathak/local/data/AllSegInit -in /home/dpathak/fbcode/experimental/deeplearning/dpathak/videoseg/datasets/imdir_ALL_21.txt
+  time python run_full.py -out /home/dpathak/local/data/AllSegInit -in /home/dpathak/fbcode/experimental/deeplearning/dpathak/videoseg/datasets/imdir_Samples.txt
   ```
