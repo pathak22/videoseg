@@ -22,7 +22,7 @@
   cd pydensecrf/
   python setup.py build_ext -i
   PYTHONPATH=.:$PYTHONPATH python examples/inference.py examples/im1.png examples/anno1.png examples/out_new1.png
-  # compare out_new.png and out1.png -- they should be same
+  # compare out_new1.png and out1.png -- they should be same
   ```
 
 3. Install appearance saliency

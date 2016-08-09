@@ -14,6 +14,8 @@ from pydensecrf.utils import compute_unary
 
 def refine_crf(im, lb, gtProb=0.5, posTh=None, negTh=None, crfParams=0):
     """
+    [ NOTE: Currently only supports n=2 i.e. FG/BG.
+            For general n: Remove this line: `MAP*=1/MAP.max()` at the end]
     Convert a given video into number of shots
     im: (h,w,c): 0-255: np.uint8: RGB
     lb: (h,w): 0-255: int or float
@@ -28,7 +30,12 @@ def refine_crf(im, lb, gtProb=0.5, posTh=None, negTh=None, crfParams=0):
         value: 0: default crf params
         value: 1: deeplab crf params
         value: 2: ccnn crf params
-    out: (h,w): 0-n: np.uint8: with label space same as lb
+    out: (h,w): np.uint8:
+        For n=2: output labels are 0 and 1
+                 0 means BG or uncertain (i.e. lb=0,1)
+                 1 means FG (i.e. lb=2)
+        For general n: Remove this line: `MAP*=1/MAP.max()` at the end
+                 Then, label space is same as input i.e. in 0..n
     """
     # Hard coded CRF parameters
     iters = 5
