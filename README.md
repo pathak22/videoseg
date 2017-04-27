@@ -1,6 +1,20 @@
 ## Video Segmentation and tracking
 
-**Video Segmentation** using low-level vision based unsupervised methods. It is largely inspired from Non-Local Consensus method, but completely unsupervised. This segmentation method includes and make use of code for optical flow, motion saliency code, appearance saliency, superpixel and low-level descriptors.
+Code for unsupervised bottom-up video motion segmentation. uNLC is a reimplementation of the NLC algorithm by Faktor and Irani, BMVC 2014, that removes the trained edge detector and makes numerous other modifications and simplifications. For additional details, see section 5.1 in the <a href="http://cs.berkeley.edu/~pathak/unsupervised_video/">paper</a>. This repository also contains code for a very simple video tracker which we developed.
+
+This code was developed and is used in our [CVPR 2017 paper on Unsupervised Learning using unlabeled videos](http://cs.berkeley.edu/~pathak/unsupervised_video/). Github repository for our CVPR 17 paper is [here](https://github.com/pathak22/unsupervised-video). If you find this work useful in your research, please cite:
+
+    @inproceedings{pathakCVPR16context,
+        Author = {Pathak, Deepak and Girshick, Ross and Doll\'{a}r,
+                  Piotr and Darrell, Trevor and Hariharan, Bharath},
+        Title = {Learning Features by Watching Objects Move},
+        Booktitle = {Computer Vision and Pattern Recognition ({CVPR})},
+        Year = {2017}
+    }
+<hr/>
+
+
+**Video Segmentation** using low-level vision based unsupervised methods. It is largely inspired from Non-Local Consensus [Faktor and Irani, BMVC 2014] method, but removes all trained components. This segmentation method includes and make use of code for optical flow, motion saliency code, appearance saliency, superpixel and low-level descriptors.
 
 **Video Tracking** code includes deepmatch followed by epic flow (or farneback) and then doing homography followed by bipartite matching to obtain foreground tracks.
 
@@ -39,7 +53,7 @@
   # rm -f kts_ver1.1.tar.gz
 
   # Edit kts/cpd_nonlin.py to remove weave dependecy. Due to this change, we are shipping the library.
-  # Included in videoseg/lib/kts/ . However, it is not a required change if you have weave installed
+  # Included in videoseg/lib/kts/ . However, it is not a required change if you already have weave installed
   # (which is mostly present by default).
   ```
 
