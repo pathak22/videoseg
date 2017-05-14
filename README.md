@@ -4,7 +4,7 @@ Code for unsupervised bottom-up video motion segmentation. uNLC is a reimplement
 
 This code was developed and is used in our [CVPR 2017 paper on Unsupervised Learning using unlabeled videos](http://cs.berkeley.edu/~pathak/unsupervised_video/). Github repository for our CVPR 17 paper is [here](https://github.com/pathak22/unsupervised-video). If you find this work useful in your research, please cite:
 
-    @inproceedings{pathakCVPR16context,
+    @inproceedings{pathakCVPR17learning,
         Author = {Pathak, Deepak and Girshick, Ross and Doll\'{a}r,
                   Piotr and Darrell, Trevor and Hariharan, Bharath},
         Title = {Learning Features by Watching Objects Move},
